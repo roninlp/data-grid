@@ -37,7 +37,7 @@ type ExcelType = z.infer<typeof testSchema>;
 export function GlideDataGrid() {
   const [cols, setCols] = useState<GridColumn[]>([]); // gdg column objects
   const [rows, setRows] = useState<number>(0); // number of rows
-  const [errors, setErrors] = useState<(ZodIssue[] | undefined)[]>([]);
+  const [errors, setErrors] = useState<(ZodIssue | undefined)[][]>([]);
   const ref = useRef<DataEditorRef>(null); // gdg ref
 
   const theme = useTheme();
@@ -52,10 +52,8 @@ export function GlideDataGrid() {
       const indexes: (keyof ExcelType)[] = ["name", "age", "email", "salary"];
 
       const dataErrors = errors[row]?.filter(
-        (err) => err.path[0] === indexes[col]
+        (err) => err?.path[0] === indexes[col]
       );
-
-      console.log(dataErrors);
 
       if (col === 0) {
         return {
@@ -63,7 +61,7 @@ export function GlideDataGrid() {
           allowOverlay: true,
           readonly: false,
           displayData: String(dataRow.name ?? ""),
-          themeOverride: dataErrors?.find((err) => err.path[0] === "name")
+          themeOverride: dataErrors?.find((err) => err?.path[0] === "name")
             ? invalidTheme
             : theme,
           data: dataRow.name,
@@ -75,7 +73,7 @@ export function GlideDataGrid() {
           allowOverlay: true,
           readonly: false,
           displayData: String(dataRow.age ?? ""),
-          themeOverride: dataErrors?.find((err) => err.path[0] === "age")
+          themeOverride: dataErrors?.find((err) => err?.path[0] === "age")
             ? invalidTheme
             : theme,
           data: dataRow.age,
@@ -87,7 +85,7 @@ export function GlideDataGrid() {
           allowOverlay: true,
           readonly: false,
           displayData: String(dataRow.email ?? ""),
-          themeOverride: dataErrors?.find((err) => err.path[0] === "email")
+          themeOverride: dataErrors?.find((err) => err?.path[0] === "email")
             ? invalidTheme
             : theme,
           data: dataRow.email,
@@ -99,7 +97,7 @@ export function GlideDataGrid() {
         allowOverlay: true,
         readonly: false,
         displayData: String(dataRow.salary ?? ""),
-        themeOverride: dataErrors?.find((err) => err.path[0] === "salary")
+        themeOverride: dataErrors?.find((err) => err?.path[0] === "salary")
           ? invalidTheme
           : theme,
         data: dataRow.salary,
@@ -151,13 +149,36 @@ export function GlideDataGrid() {
   // export data
   const exportXLSX = useCallback(() => {
     // generate worksheet using data with the order specified in the columns array
+    console.log(data);
     const ws = utils.json_to_sheet(data, {
       header: cols.map((c) => c.id ?? c.title),
     });
+
+    ws["!cols"] = [
+      { wch: 13 },
+      { wch: 13 },
+      { wch: 13 },
+      { wch: 13 },
+      { wch: 13 },
+    ];
+
+    for (const row in ws) {
+      console.log(ws[row]);
+      if (ws[row] && ws[row].v && typeof ws[row].v === "string") {
+        ws[row].s = {
+          fill: { patternType: "solid", bgColor: { rgb: "FF0000" } },
+        };
+        if (!ws[row].c) ws[row].c = [];
+        ws[row].c.push({ a: "ali", t: "this is a comment" });
+      }
+    }
+
+    console.log(ws);
     // rewrite header row with titles
     utils.sheet_add_aoa(ws, [cols.map((c) => c.title ?? c.id)], {
       origin: "A1",
     });
+
     // create workbook
     const wb = utils.book_new();
     utils.book_append_sheet(wb, ws, "Export"); // replace with sheet name
@@ -169,10 +190,13 @@ export function GlideDataGrid() {
     const sheetErrors = data.map((item) => {
       const result = testSchema.safeParse(item);
       if (!result.success) {
-        return result.error.errors;
-      } else return;
+        const dat = Object.keys(item).map((key) =>
+          result.error.errors.find((err) => err.path[0] === key)
+        );
+        return dat;
+      } else return [];
     });
-
+    console.log(sheetErrors);
     setErrors(sheetErrors);
   };
 
