@@ -1,10 +1,4 @@
-import {
-  CanvasDataGrid,
-  GlideDataGrid,
-  Index,
-  ReactDataGrid,
-  Root,
-} from "@/routes";
+import { GlideDataGrid, Index, Root } from "@/routes";
 import {
   RootRoute,
   Route,
@@ -31,23 +25,23 @@ const glideRoute = new Route({
   component: GlideDataGrid,
 });
 
-const rdgRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: "/rdg",
-  component: ReactDataGrid,
-});
+// const rdgRoute = new Route({
+//   getParentRoute: () => rootRoute,
+//   path: "/rdg",
+//   component: ReactDataGrid,
+// });
 
-const cdgRoute = new Route({
-  getParentRoute: () => rootRoute,
-  path: "/cdg",
-  component: CanvasDataGrid,
-});
+// const cdgRoute = new Route({
+//   getParentRoute: () => rootRoute,
+//   path: "/cdg",
+//   component: CanvasDataGrid,
+// });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
   glideRoute,
-  rdgRoute,
-  cdgRoute,
+  // rdgRoute,
+  // cdgRoute,
 ]);
 
 const router = new Router({ routeTree });
