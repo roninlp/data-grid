@@ -5,7 +5,6 @@ import { useToast } from "@/components/ui/use-toast";
 import {
   DataEditor,
   DataEditorRef,
-  EditableGridCell,
   GridCell,
   GridCellKind,
   GridColumn,
@@ -18,7 +17,7 @@ import { ChangeEvent, useCallback, useRef, useState } from "react";
 import { WorkBook, WorkSheet, read, utils, writeFileXLSX } from "xlsx-js-style";
 import { ZodIssue, z } from "zod";
 
-type DataSet = { [index: string]: WorkSheet };
+// type DataSet = { [index: string]: WorkSheet };
 // this will store the raw data objects
 let userData: UserType[] = [];
 
@@ -27,7 +26,9 @@ let billData: BillType[] = [];
 let jobData: JobType[] = [];
 
 // this will store the header names
-let header: string[] = [];
+let userHeader: string[] = [];
+let billHeader: string[] = [];
+let jobHeader: string[] = [];
 
 const userSchema = z.object({
   name: z.string(),
@@ -41,13 +42,13 @@ const userSchema = z.object({
 const billSchema = z.object({
   name: z.string(),
   bill: z.number(),
-  share: z.number().max(2, { message: "number needs to be smaller" }),
+  share: z.number().max(1, { message: "number needs to be smaller" }),
 });
 
 const jobSchema = z.object({
   name: z.string(),
   job: z.string(),
-  experience: z.number().min(2, { message: "minimum 2 years experience" }),
+  experience: z.number().min(4, { message: "minimum 2 years experience" }),
 });
 
 type UserType = z.infer<typeof userSchema>;
@@ -55,12 +56,18 @@ type BillType = z.infer<typeof billSchema>;
 type JobType = z.infer<typeof jobSchema>;
 
 export function GlideDataGrid() {
-  const [cols, setCols] = useState<GridColumn[]>([]); // gdg column objects
-  const [rows, setRows] = useState<number>(0); // number of rows
+  const [userCols, setUserCols] = useState<GridColumn[]>([]); // gdg column objects
+  const [userRows, setUserRows] = useState<number>(0); // number of rows
+  const [billCols, setBillCols] = useState<GridColumn[]>([]); // gdg column objects
+  const [billRows, setBillRows] = useState<number>(0); // number of rows
+  const [jobCols, setJobCols] = useState<GridColumn[]>([]); // gdg column objects
+  const [jobRows, setJobRows] = useState<number>(0); // number of rows
   const [userErrors, setUserErrors] = useState<(ZodIssue | undefined)[][]>([]);
+  const [billErrors, setBillErrors] = useState<(ZodIssue | undefined)[][]>([]);
+  const [jobErrors, setJobErrors] = useState<(ZodIssue | undefined)[][]>([]);
   const ref = useRef<DataEditorRef>(null); // gdg ref
 
-  const [workBook, setWorkBook] = useState<DataSet>({} as DataSet); // workbook
+  // const [workBook, setWorkBook] = useState<DataSet>({} as DataSet); // workbook
   const [sheets, setSheets] = useState<string[]>([]); // list of sheet names
   const [current, setCurrent] = useState<string>(""); // selected sheet
 
@@ -138,7 +145,7 @@ export function GlideDataGrid() {
       const dataRow = billData[row];
       const indexes: (keyof BillType)[] = ["name", "bill", "share"];
 
-      const dataErrors = userErrors[row]?.filter(
+      const dataErrors = billErrors[row]?.filter(
         (err) => err?.path[0] === indexes[col]
       );
 
@@ -187,7 +194,7 @@ export function GlideDataGrid() {
       const dataRow = jobData[row];
       const indexes: (keyof JobType)[] = ["name", "job", "experience"];
 
-      const dataErrors = userErrors[row]?.filter(
+      const dataErrors = jobErrors[row]?.filter(
         (err) => err?.path[0] === indexes[col]
       );
 
@@ -239,39 +246,28 @@ export function GlideDataGrid() {
   //   validateData();
   // }, []);
 
-  function selectSheet(name: string) {
-    /* update workbook cache in case the current worksheet was changed */
-    // workBook[current] = utils.aoa_to_sheet(arrayify(rows));
-
-    const sheet = workBook[name];
-
-    // getUserColRows(sheet);
-
-    // /* get data for desired sheet and update state */
-    // const { rows: new_rows, columns: new_columns } = getRowsCols(workBook, name);
-    // setRows(new_rows);
-    // setColumns(new_columns);
-    setCurrent(name);
-  }
-
   // update the data store from a workbook object
   const parse_wb = (wb: WorkBook) => {
     const userSheet = wb.Sheets[wb.SheetNames[0]];
     const billSheet = wb.Sheets[wb.SheetNames[1]];
     const jobSheet = wb.Sheets[wb.SheetNames[2]];
 
-    setWorkBook(wb.Sheets);
+    // setWorkBook(wb.Sheets);
     setSheets(wb.SheetNames);
     setCurrent(wb.SheetNames[0]);
 
-    getColRows(userSheet);
+    getUserColRows(userSheet);
+    getBillColRows(billSheet);
+    getJobColRows(jobSheet);
 
-    validateData();
+    validateUserData();
+    validateBillData();
+    validateJobData();
 
     if (userData.length > 0) {
       const cells = userData
         .map((_, R) =>
-          Array.from({ length: header.length }, (_, C) => ({
+          Array.from({ length: userHeader.length }, (_, C) => ({
             cell: [C, R] as Item,
           }))
         )
@@ -280,13 +276,29 @@ export function GlideDataGrid() {
     }
   };
 
-  const getColRows = (sheet: WorkSheet) => {
+  const getUserColRows = (sheet: WorkSheet) => {
     userData = utils.sheet_to_json<UserType>(sheet);
     const range = utils.decode_range(sheet["!ref"] ?? "A1");
     range.e.r = range.s.r;
-    header = utils.sheet_to_json<string[]>(sheet, { header: 1, range })[0];
-    setCols(header.map((h) => ({ title: h, id: h } as GridColumn)));
-    setRows(userData.length);
+    userHeader = utils.sheet_to_json<string[]>(sheet, { header: 1, range })[0];
+    setUserCols(userHeader.map((h) => ({ title: h, id: h } as GridColumn)));
+    setUserRows(userData.length);
+  };
+  const getBillColRows = (sheet: WorkSheet) => {
+    billData = utils.sheet_to_json<BillType>(sheet);
+    const range = utils.decode_range(sheet["!ref"] ?? "A1");
+    range.e.r = range.s.r;
+    billHeader = utils.sheet_to_json<string[]>(sheet, { header: 1, range })[0];
+    setBillCols(billHeader.map((h) => ({ title: h, id: h } as GridColumn)));
+    setBillRows(billData.length);
+  };
+  const getJobColRows = (sheet: WorkSheet) => {
+    jobData = utils.sheet_to_json<JobType>(sheet);
+    const range = utils.decode_range(sheet["!ref"] ?? "A1");
+    range.e.r = range.s.r;
+    jobHeader = utils.sheet_to_json<string[]>(sheet, { header: 1, range })[0];
+    setJobCols(jobHeader.map((h) => ({ title: h, id: h } as GridColumn)));
+    setJobRows(jobData.length);
   };
 
   // file input element onchange event handler
@@ -319,7 +331,7 @@ export function GlideDataGrid() {
     const errorMap = generateErrorMap();
     // generate worksheet using data with the order specified in the columns array
     const ws = utils.json_to_sheet(userData, {
-      header: cols.map((c) => c.id ?? c.title),
+      header: userCols.map((c) => c.id ?? c.title),
     });
 
     ws["!cols"] = [{ wch: 13 }, { wch: 13 }, { wch: 20 }, { wch: 13 }];
@@ -336,7 +348,7 @@ export function GlideDataGrid() {
     }
 
     // rewrite header row with titles
-    utils.sheet_add_aoa(ws, [cols.map((c) => c.title ?? c.id)], {
+    utils.sheet_add_aoa(ws, [userCols.map((c) => c.title ?? c.id)], {
       origin: "A1",
     });
 
@@ -345,11 +357,23 @@ export function GlideDataGrid() {
     utils.book_append_sheet(wb, ws, "Export"); // replace with sheet name
     // download file
     writeFileXLSX(wb, "sheetjs-gdg.xlsx");
-  }, [cols]);
+  }, [userCols]);
 
-  const validateData = () => {
-    const sheetErrors = userData.map((item) => {
-      const result = userSchema.safeParse(item);
+  const validateUserData = () => {
+    const userSheetErrors = userData.map((item, index) => {
+      console.log(index);
+      const result = userSchema
+        .refine((val) => {
+          val.name !== billData[index].name,
+            {
+              message: "Name must be equall",
+              path: ["name"],
+              code: z.ZodIssueCode.custom,
+              fatal: true,
+            };
+        })
+        .safeParse(item);
+
       if (!result.success) {
         const dat = Object.keys(item).map((key) =>
           result.error.errors.find((err) => err.path[0] === key)
@@ -357,7 +381,32 @@ export function GlideDataGrid() {
         return dat;
       } else return [];
     });
-    setUserErrors(sheetErrors);
+    setUserErrors(userSheetErrors);
+  };
+  const validateBillData = () => {
+    const billSheetErrors = billData.map((item) => {
+      const result = billSchema.safeParse(item);
+      if (!result.success) {
+        const dat = Object.keys(item).map((key) =>
+          result.error.errors.find((err) => err.path[0] === key)
+        );
+        return dat;
+      } else return [];
+    });
+    setBillErrors(billSheetErrors);
+  };
+
+  const validateJobData = () => {
+    const jobSheetErrors = jobData.map((item) => {
+      const result = jobSchema.safeParse(item);
+      if (!result.success) {
+        const dat = Object.keys(item).map((key) =>
+          result.error.errors.find((err) => err.path[0] === key)
+        );
+        return dat;
+      } else return [];
+    });
+    setJobErrors(jobSheetErrors);
   };
 
   return (
@@ -373,7 +422,7 @@ export function GlideDataGrid() {
             <p>
               Use the dropdown to switch to a worksheet:&nbsp;
               <select
-                onChange={async (e) => selectSheet(sheets[+e.target.value])}
+                onChange={async (e) => setCurrent(sheets[+e.target.value])}
               >
                 {sheets.map((sheet, idx) => (
                   <option key={sheet} value={idx}>
@@ -388,30 +437,50 @@ export function GlideDataGrid() {
           </>
         )}
         <div className="App">
-          <DataEditor
-            getCellContent={
-              current === "users"
-                ? getUserContent
-                : current === "bills"
-                ? getBillContent
-                : getJobContent
-            }
-            columns={cols}
-            rows={rows}
-            // onCellEdited={onCellEdited}
-            onCellClicked={(cell) => {
-              const [col, row] = cell;
-              const cellError = userErrors[row][col];
-              if (cellError) {
-                toast({
-                  title: "Error",
-                  description: cellError.message,
-                  variant: "destructive",
-                });
+          {userData[0] && (
+            <DataEditor
+              getCellContent={
+                current === "users"
+                  ? getUserContent
+                  : current === "bills"
+                  ? getBillContent
+                  : getJobContent
               }
-            }}
-            ref={ref}
-          />
+              columns={
+                current === "users"
+                  ? userCols
+                  : current === "bills"
+                  ? billCols
+                  : jobCols
+              }
+              rows={
+                current === "users"
+                  ? userRows
+                  : current === "bills"
+                  ? billRows
+                  : jobRows
+              }
+              // onCellEdited={onCellEdited}
+              onCellClicked={(cell, e) => {
+                e.preventDefault();
+                const [col, row] = cell;
+                const cellError =
+                  current === "users"
+                    ? userErrors[row][col]
+                    : current === "bills"
+                    ? billErrors[row][col]
+                    : jobErrors[row][col];
+                if (cellError) {
+                  toast({
+                    title: "Error",
+                    description: cellError.message,
+                    variant: "destructive",
+                  });
+                }
+              }}
+              ref={ref}
+            />
+          )}
         </div>
         <Button onClick={exportXLSX}>Export</Button>
 
