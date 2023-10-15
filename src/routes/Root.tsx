@@ -1,5 +1,5 @@
 import { Link, Outlet } from "@tanstack/react-router";
-
+import { Toaster } from "@/components/ui/toaster";
 export function Root() {
   return (
     <>
@@ -10,6 +10,7 @@ export function Root() {
         <Link to="/cdg">Canvas data grid</Link> */}
       </div>
       <hr />
+      <Toaster />
       <Outlet />
     </>
   );
