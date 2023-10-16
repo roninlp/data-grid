@@ -2,6 +2,7 @@
 import { InputFile } from "@/components/InputFile";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { cn } from "@/lib/utils";
 import {
   DataEditor,
   DataEditorRef,
@@ -75,7 +76,10 @@ export function GlideDataGrid() {
 
   const theme = useTheme();
 
-  const invalidTheme: Theme = { ...theme, bgCell: "red" };
+  const invalidTheme: Theme = {
+    ...theme,
+    bgCell: "#f77272",
+  };
 
   // read/write between gdg and the backing data store
   const getUserContent = useCallback(
@@ -361,16 +365,15 @@ export function GlideDataGrid() {
 
   const validateUserData = () => {
     const userSheetErrors = userData.map((item, index) => {
-      console.log(index);
       const result = userSchema
-        .refine((val) => {
-          val.name !== billData[index].name,
-            {
-              message: "Name must be equall",
+        .superRefine((val, ctx) => {
+          if (val.name !== billData[index].name) {
+            ctx.addIssue({
+              message: `Name must be equall to bill sheet row ${index + 1}`,
               path: ["name"],
               code: z.ZodIssueCode.custom,
-              fatal: true,
-            };
+            });
+          }
         })
         .safeParse(item);
 
@@ -419,7 +422,7 @@ export function GlideDataGrid() {
       </button> */}
         {sheets.length > 0 && (
           <>
-            <p>
+            {/* <p>
               Use the dropdown to switch to a worksheet:&nbsp;
               <select
                 onChange={async (e) => setCurrent(sheets[+e.target.value])}
@@ -430,9 +433,30 @@ export function GlideDataGrid() {
                   </option>
                 ))}
               </select>
-            </p>
-            <div className="flex-cont">
-              <b>Current Sheet: {current}</b>
+            </p> */}
+            <div className="flex gap-4">
+              {sheets.map((sheet) => (
+                <Button
+                  variant={sheet === current ? "default" : "outline"}
+                  className="flex gap-4"
+                  key={sheet}
+                  onClick={() => setCurrent(sheet)}
+                >
+                  {sheet}
+                  <span
+                    className={cn(
+                      sheet !== current ? "text-white" : "text-black",
+                      "bg-red-600 rounded-full w-5 h-5"
+                    )}
+                  >
+                    {sheet === "users"
+                      ? userErrors.flat().filter((err) => err).length
+                      : sheet === "bills"
+                      ? billErrors.flat().filter((err) => err).length
+                      : jobErrors.flat().filter((err) => err).length}
+                  </span>
+                </Button>
+              ))}
             </div>
           </>
         )}
