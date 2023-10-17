@@ -52,6 +52,8 @@ const jobSchema = z.object({
   experience: z.number().min(4, { message: "minimum 2 years experience" }),
 });
 
+const arrayUseSchema = userSchema.array();
+
 type UserType = z.infer<typeof userSchema>;
 type BillType = z.infer<typeof billSchema>;
 type JobType = z.infer<typeof jobSchema>;
@@ -59,10 +61,14 @@ type JobType = z.infer<typeof jobSchema>;
 export function GlideDataGrid() {
   const [userCols, setUserCols] = useState<GridColumn[]>([]); // gdg column objects
   const [userRows, setUserRows] = useState<number>(0); // number of rows
+
   const [billCols, setBillCols] = useState<GridColumn[]>([]); // gdg column objects
   const [billRows, setBillRows] = useState<number>(0); // number of rows
+
   const [jobCols, setJobCols] = useState<GridColumn[]>([]); // gdg column objects
   const [jobRows, setJobRows] = useState<number>(0); // number of rows
+
+  //Errors
   const [userErrors, setUserErrors] = useState<(ZodIssue | undefined)[][]>([]);
   const [billErrors, setBillErrors] = useState<(ZodIssue | undefined)[][]>([]);
   const [jobErrors, setJobErrors] = useState<(ZodIssue | undefined)[][]>([]);
@@ -265,18 +271,46 @@ export function GlideDataGrid() {
     getJobColRows(jobSheet);
 
     validateUserData();
+    const arrayValidation = arrayUseSchema.safeParse(userData);
+    if (!arrayValidation.success) {
+      console.log(arrayValidation.error.errors);
+    }
     validateBillData();
     validateJobData();
 
-    if (userData.length > 0) {
-      const cells = userData
-        .map((_, R) =>
-          Array.from({ length: userHeader.length }, (_, C) => ({
-            cell: [C, R] as Item,
-          }))
-        )
-        .flat();
-      ref.current?.updateCells(cells);
+    if (current === "users") {
+      if (userData.length > 0) {
+        const cells = userData
+          .map((_, R) =>
+            Array.from({ length: userHeader.length }, (_, C) => ({
+              cell: [C, R] as Item,
+            }))
+          )
+          .flat();
+        ref.current?.updateCells(cells);
+      }
+    } else if (current === "bills") {
+      if (billData.length > 0) {
+        const cells = billData
+          .map((_, R) =>
+            Array.from({ length: billHeader.length }, (_, C) => ({
+              cell: [C, R] as Item,
+            }))
+          )
+          .flat();
+        ref.current?.updateCells(cells);
+      }
+    } else {
+      if (jobData.length > 0) {
+        const cells = jobData
+          .map((_, R) =>
+            Array.from({ length: jobHeader.length }, (_, C) => ({
+              cell: [C, R] as Item,
+            }))
+          )
+          .flat();
+        ref.current?.updateCells(cells);
+      }
     }
   };
 
@@ -420,9 +454,11 @@ export function GlideDataGrid() {
         {/* <button onClick={exportXLSX}>
         <b>Export XLSX!</b>
       </button> */}
-        {sheets.length > 0 && (
-          <>
-            {/* <p>
+        {userData.length > 0 && (
+          <div className="scroll-smooth overflow-auto gap-4 flex flex-col justify-center items-center">
+            {sheets.length > 0 && (
+              <>
+                {/* <p>
               Use the dropdown to switch to a worksheet:&nbsp;
               <select
                 onChange={async (e) => setCurrent(sheets[+e.target.value])}
@@ -434,34 +470,33 @@ export function GlideDataGrid() {
                 ))}
               </select>
             </p> */}
-            <div className="flex gap-4">
-              {sheets.map((sheet) => (
-                <Button
-                  variant={sheet === current ? "default" : "outline"}
-                  className="flex gap-4"
-                  key={sheet}
-                  onClick={() => setCurrent(sheet)}
-                >
-                  {sheet}
-                  <span
-                    className={cn(
-                      sheet !== current ? "text-white" : "text-black",
-                      "bg-red-600 rounded-full w-5 h-5"
-                    )}
-                  >
-                    {sheet === "users"
-                      ? userErrors.flat().filter((err) => err).length
-                      : sheet === "bills"
-                      ? billErrors.flat().filter((err) => err).length
-                      : jobErrors.flat().filter((err) => err).length}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          </>
-        )}
-        <div className="App">
-          {userData[0] && (
+                <div className="flex gap-4">
+                  {sheets.map((sheet) => (
+                    <Button
+                      variant={sheet === current ? "default" : "outline"}
+                      className="flex gap-4"
+                      key={sheet}
+                      onClick={() => setCurrent(sheet)}
+                    >
+                      {sheet}
+                      <span
+                        className={cn(
+                          // sheet !== current ? "text-white" : "text-black",
+                          "bg-red-600 rounded-full w-5 h-5 text-white"
+                        )}
+                      >
+                        {sheet === "users"
+                          ? userErrors.flat().filter((err) => err).length
+                          : sheet === "bills"
+                          ? billErrors.flat().filter((err) => err).length
+                          : jobErrors.flat().filter((err) => err).length}
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </>
+            )}
+
             <DataEditor
               getCellContent={
                 current === "users"
@@ -504,8 +539,8 @@ export function GlideDataGrid() {
               }}
               ref={ref}
             />
-          )}
-        </div>
+          </div>
+        )}
         <Button onClick={exportXLSX}>Export</Button>
 
         <div id="portal"></div>
